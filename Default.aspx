@@ -36,54 +36,64 @@
 
         <script type="text/javascript">
             // =============================================
-            // State
+            // ส่วนมัดรวมสถานะ (State)
             // =============================================
-            var openedTab = null;   // window reference ของ tab
-            var pollTimer = null;
-            var POLL_MS = 400;      // ตรวจสอบทุก 0.4 วินาที
+            var openedTab = null;   // ตัวแปรเก็บ Reference (หน้าต่าง) ของ Tab ที่เปิดใหม่
+            var pollTimer = null;   // ตัวแปรเก็บ ID ของตัวจับเวลา (Timer) สำหรับตรวจสอบสถานะ
+            var POLL_MS = 400;      // ตั้งค่าความถี่ในการตรวจสอบ (0.4 วินาที)
 
             // =============================================
-            // Init
+            // เริ่มต้นการทำงาน (Initial)
             // =============================================
             document.addEventListener('DOMContentLoaded', function () {
+                // ผูกเหตุการณ์เมื่อกดปุ่ม ให้เรียกฟังก์ชันเปิด Tab
                 document.getElementById('btnOpenTab').addEventListener('click', openInfoTab);
             });
 
             // =============================================
-            // เปิด Tab โดยตรง
+            // ฟังก์ชันสำหรับเปิด Tab และเริ่มการตรวจสอบ
             // =============================================
             function openInfoTab() {
                 var url = document.getElementById('txtUrl').value.trim();
+
+                // ตรวจสอบความถูกต้องของ URL เบื้องต้น
                 if (!url) { showStatus('warning', '⚠️ กรุณาใส่ URL ก่อน'); return; }
                 if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
 
-                // ถ้ามี Tab เดิมเปิดอยู่แล้ว ให้ focus
+                // ตรวจสอบว่าถ้ามี Tab เดิมเปิดอยู่แล้ว และยังไม่ได้ปิด ให้ย้ายโฟกัสไปที่หน้านั้นแทนการเปิดใหม่
                 if (openedTab && !openedTab.closed) {
                     openedTab.focus();
                     return;
                 }
 
-                // สั่งเปิด URL
+                // สั่งเปิด URL ไปที่หน้าต่างใหม่ (_blank)
                 openedTab = window.open(url, '_blank');
 
+                // กรณีที่ Browser บล็อก Popup
                 if (!openedTab) {
-                    showStatus('warning', '⚠️ Popup ถูกบล็อก — กรุณา Allow popup');
+                    showStatus('warning', '⚠️ Popup ถูกบล็อก — กรุณา Allow popup ใน Browser');
                     return;
                 }
 
+                // ปรับแต่ง UI ให้ดูเหมือนระบบกำลังประมวลผล
                 setButton(true, '⏳ กำลังดูข้อมูล...');
-                showStatus('info', '&#x1F4C4; เปิดหน้าเว็บแล้ว — ระบบกำลังรอให้คุณปิด Tab...');
+                showStatus('info', '&#x1F4C4; เปิดหน้าเว็บแล้ว — ระบบจะตรวจสอบ "อัตโนมัติ" เมื่อคุณปิด Tab นั้น');
 
-                // เริ่มตรวจสอบสถานะการปิด
+                // เริ่มกระบวนการจับเวลาตรวจสอบ (Polling)
                 if (pollTimer) clearInterval(pollTimer);
+
+                // สั่งให้รันฟังก์ชัน checkClosed ทุกๆ 0.4 วินาที
                 pollTimer = setInterval(checkClosed, POLL_MS);
             }
 
             // =============================================
-            // ตรวจสอบสถานะ .closed
+            // ฟังก์ชันตรวจสอบสถานะความคืบหน้า (Polling Function)
             // =============================================
             function checkClosed() {
+                // หัวใจสำคัญ: .closed คือ Property เดียวที่อนุญาตให้อ่านข้าม Domain (Cross-Origin) ได้
+                // เมื่อไหร่ก็ตามที่ผู้ใช้ปิดหน้าต่างเป้าหมาย .closed จะเปลี่ยนเป็น true
                 if (openedTab && openedTab.closed) {
+                    // หยุดตัวจับเวลา และแจ้งเตือน
                     clearInterval(pollTimer);
                     pollTimer = null;
                     confirmClosed();
@@ -91,16 +101,16 @@
             }
 
             // =============================================
-            // เมื่อยืนยันว่า Tab ปิดแล้ว
+            // ฟังก์ชันแจ้งเตือนเมื่อตรวจพบการปิด Tab สำเร็จ
             // =============================================
             function confirmClosed() {
                 openedTab = null;
-                showStatus('success', '&#x2705; ตรวจพบการปิด Tab แล้ว! (ตรวจจาก .closed property)');
+                showStatus('success', '&#x2705; ตรวจพบการปิด Tab แล้ว! (สถานะ: .closed = true)');
                 setButton(false, '&#x2197; ดูข้อมูล');
             }
 
             // =============================================
-            // Helpers
+            // ฟังก์ชันช่วยจัดการ UI (Helpers)
             // =============================================
             function setButton(busy, label) {
                 var b = document.getElementById('btnOpenTab');
